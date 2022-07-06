@@ -1,15 +1,17 @@
 const canvas = document.querySelector('canvas');
+const inventory = document.getElementById('inventory');
+const box0 = document.getElementById('box-0');
 
 const c = canvas.getContext('2d');
 
-canvas.width = 1024;
-canvas.height = 576;
+//canvas.width = window.innerWidth;
+//canvas.height = window.innerHeight;
 
 const image = new Image();
-image.src = './assets/PelletTown.png';
+image.src = './assets/farm.png';
 
-const fieldImage = new Image();
-fieldImage.src = './assets/farmland.png';
+const hoe = new Image();
+hoe.src = './assets/hoe.png';
 
 const playerDownImage = new Image();
 playerDownImage.src = './assets/playerDown.png';
@@ -19,6 +21,49 @@ const playerLeftImage = new Image();
 playerLeftImage.src = './assets/playerLeft.png';
 const playerRightImage = new Image();
 playerRightImage.src = './assets/playerRight.png';
+
+box0.appendChild(hoe);
+
+const collisionMap = [];
+for (let i = 0; i < collisions.length; i += 70) {
+  collisionMap.push(collisions.slice(i, 70 + i));
+}
+
+class Boundary {
+  static width = 48;
+  static height = 48;
+  constructor({ position }) {
+    this.position = position;
+    this.width = 48;
+    this.height = 48;
+  }
+
+  draw() {
+    c.fillStyle = 'rgba(255, 0, 0, 0.2)';
+    c.fillRect(this.position.x, this.position.y, this.width, this.height);
+  }
+}
+
+const offset = {
+  x: -450,
+  y: -450,
+};
+
+const boundaries = [];
+
+collisionMap.forEach((row, i) => {
+  row.forEach((symbol, j) => {
+    if (symbol === 217)
+      boundaries.push(
+        new Boundary({
+          position: {
+            x: j * Boundary.width + offset.x,
+            y: i * Boundary.height + offset.y,
+          },
+        })
+      );
+  });
+});
 
 class Sprite {
   constructor({ position, image, frames = { max: 1 }, sprites }) {
@@ -61,24 +106,16 @@ class Sprite {
 
 const background = new Sprite({
   position: {
-    x: -785,
-    y: -650,
+    x: offset.x,
+    y: offset.y,
   },
   image: image,
 });
 
-const field = new Sprite({
-  position: {
-    x: 0,
-    y: 0,
-  },
-  image: fieldImage,
-});
-
 const player = new Sprite({
   position: {
-    x: 400,
-    y: 300,
+    x: 620,
+    y: 420,
   },
   image: playerDownImage,
   frames: {
@@ -108,30 +145,130 @@ const keys = {
   },
 };
 
+const moveables = [background, ...boundaries];
+
+function rectangularCollision({ rectangle1, rectangle2 }) {
+  return (
+    rectangle1.position.x + rectangle1.width >= rectangle2.position.x &&
+    rectangle1.position.x <= rectangle2.position.x + rectangle2.width &&
+    rectangle1.position.y <= rectangle2.position.y + rectangle2.height &&
+    rectangle1.position.y + rectangle1.width >= rectangle2.position.y
+  );
+}
+
 function animate() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
   window.requestAnimationFrame(animate);
   background.draw();
+  boundaries.forEach((boundary) => {
+    boundary.draw();
+  });
   player.draw();
-  field.draw();
 
   player.moving = false;
 
   if (keys.w.pressed && lastKey === 'w') {
-    background.position.y += 3;
     player.moving = true;
     player.image = player.sprites.up;
+    for (let i = 0; i < boundaries.length; i++) {
+      const boundary = boundaries[i];
+      if (
+        rectangularCollision({
+          rectangle1: player,
+          rectangle2: {
+            ...boundary,
+            position: {
+              x: boundary.position.x,
+              y: boundary.position.y + 3,
+            },
+          },
+        })
+      ) {
+        player.moving = false;
+        break;
+      }
+    }
+    if (player.moving)
+      moveables.forEach((moveable) => {
+        moveable.position.y += 3;
+      });
   } else if (keys.a.pressed && lastKey === 'a') {
-    background.position.x += 3;
     player.moving = true;
     player.image = player.sprites.left;
+    for (let i = 0; i < boundaries.length; i++) {
+      const boundary = boundaries[i];
+      if (
+        rectangularCollision({
+          rectangle1: player,
+          rectangle2: {
+            ...boundary,
+            position: {
+              x: boundary.position.x + 3,
+              y: boundary.position.y,
+            },
+          },
+        })
+      ) {
+        player.moving = false;
+        break;
+      }
+    }
+    if (player.moving)
+      moveables.forEach((moveable) => {
+        moveable.position.x += 3;
+      });
   } else if (keys.s.pressed && lastKey === 's') {
-    background.position.y -= 3;
     player.moving = true;
     player.image = player.sprites.down;
+    for (let i = 0; i < boundaries.length; i++) {
+      const boundary = boundaries[i];
+      if (
+        rectangularCollision({
+          rectangle1: player,
+          rectangle2: {
+            ...boundary,
+            position: {
+              x: boundary.position.x,
+              y: boundary.position.y - 3,
+            },
+          },
+        })
+      ) {
+        player.moving = false;
+        break;
+      }
+    }
+    if (player.moving)
+      moveables.forEach((moveable) => {
+        moveable.position.y -= 3;
+      });
   } else if (keys.d.pressed && lastKey === 'd') {
-    background.position.x -= 3;
     player.moving = true;
     player.image = player.sprites.right;
+    for (let i = 0; i < boundaries.length; i++) {
+      const boundary = boundaries[i];
+      if (
+        rectangularCollision({
+          rectangle1: player,
+          rectangle2: {
+            ...boundary,
+            position: {
+              x: boundary.position.x - 3,
+              y: boundary.position.y,
+            },
+          },
+        })
+      ) {
+        player.moving = false;
+        break;
+      }
+    }
+    if (player.moving)
+      moveables.forEach((moveable) => {
+        moveable.position.x -= 3;
+      });
   }
 }
 
@@ -140,6 +277,7 @@ animate();
 let lastKey = '';
 window.addEventListener('keydown', (e) => {
   switch (e.key) {
+    //movement
     case 'w':
       keys.w.pressed = true;
       lastKey = 'w';
@@ -158,11 +296,20 @@ window.addEventListener('keydown', (e) => {
       keys.d.pressed = true;
       lastKey = 'd';
       break;
+
+    //open inventory
+    case 'i':
+      if (inventory.style.visibility === 'hidden') {
+        inventory.style.visibility = 'visible';
+      } else {
+        inventory.style.visibility = 'hidden';
+      }
   }
 });
 
 window.addEventListener('keyup', (e) => {
   switch (e.key) {
+    //movement
     case 'w':
       keys.w.pressed = false;
       break;
